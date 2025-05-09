@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>松屋フーズマップ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.css" rel="stylesheet" />
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #map { height: 100%; }
+    #layerToggle {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 999;
+    }
+    #filterPanel {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 999;
+      background: white;
+      padding: 10px;
+      border-radius: 5px;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="filterPanel">
+  <div>
+    ブランド：
+    <select id="brandSelect">
+      <option value="all">すべて表示</option>
+      <option value="松屋">松屋</option>
+      <option value="マイカリー食堂">マイカリー食堂</option>
+      <option value="松のや">松のや</option>
+      <option value="すし松">すし松</option>
+      <option value="松軒中華食堂">松軒中華食堂</option>
+      <option value="松弁KITCHEN">松弁KITCHEN</option>
+      <option value="ステーキ屋松">ステーキ屋松</option>
+      <option value="ステーキ定食 松牛">ステーキ定食 松牛</option>
+      <option value="カフェ テラスヴェルト">カフェ テラスヴェルト</option>
+      <option value="福松">福松</option>
+      <option value="麦のトリコ">麦のトリコ</option>
+      <option value="トゥックントゥックン">トゥックントゥックン</option>
+    </select>
+  </div>
+
+  <div style="margin-top: 8px;">
+    期間限定：
+    <select id="codeFilterSelect">
+      <option value="all">すべて表示</option>
+      <option value="ライスおかわり無料.csv">ライスおかわり無料</option>
+      <optgroup label="実施中">
+        <option value="20250429_豆乳ぷりん.csv">20250429- 豆乳ぷりん</option>
+        <option value="20250506_欧風牛タンカレー.csv">20250506-20250513 欧風牛タンカレー</option>
+        <option value="20250506_元祖ネギ塩厚切り豚カルビ丼.csv">20250506-20250513 元祖ネギ塩厚切り豚カルビ丼</option>
+        <option value="20250506_元祖ネギ塩厚切り豚カルビ丼 ネギ塩とんタン丼.csv">20250506-20250513 元祖ネギ塩厚切り豚カルビ丼・ネギ塩とんタン丼</option>
+        <option value="20250506_旨辛玉子ソーセージ丼.csv">20250506-20250513 旨辛玉子ソーセージ丼</option>
+      </optgroup>
+      <optgroup label="過去">
+        <option value="20250429_国産雪国育ち極厚トンテキ.csv">20250429-20250506_国産雪国育ち極厚トンテキ</option>
+      </optgroup>
+    </select>
+  </div>
+</div>
+
+
+<script src="https://unpkg.com/maplibre-gl@2.4.0/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="./js/common.js"></script>
+
+</body>
+</html>
