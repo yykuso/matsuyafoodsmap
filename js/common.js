@@ -3,7 +3,7 @@ const [mapCenter, mapZoom] = initCenterZoom();
 
 const map = new maplibregl.Map({
 	container: 'map',
-	style: 'https://tile.openstreetmap.jp/styles/openmaptiles/style.json',
+	style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json',
 	center: mapCenter,
 	zoom: mapZoom
 });
@@ -69,15 +69,42 @@ map.on('load', async() => {
 
 // ポップアップの表示
 map.on('click', 'allStoresLayer', (e) => {
-	const feature = e.features[0];
-	const {
-		store_name,
-	} = feature.properties;
+    const feature = e.features[0];
+    const {
+        store_name,
+    } = feature.properties;
 
-	new maplibregl.Popup()
-		.setLngLat(feature.geometry.coordinates)
-		.setHTML(`<strong>${store_name}</strong>`)
-		.addTo(map);
+    // 店舗名から括弧と中身を削除
+    const cleanStoreName = store_name.replace(/（.*?）/g, '').replace(/\(.*?\)/g, '').trim();
+
+    // 検索用にエンコードした店舗名
+    const encodedStoreName = encodeURIComponent(cleanStoreName);
+
+    // GoogleマップとAppleマップのURL
+    const googleMapsUrl = `https://www.google.com/maps/search/${encodedStoreName}`;
+    const appleMapsUrl = `http://maps.apple.com/?q=${encodedStoreName}`;
+
+    // ポップアップのHTML
+    const popupHTML = `
+        <div style="min-width: 180px;">
+            <strong style="display: block; margin-bottom: 8px;">${store_name}</strong>
+            <div style="display: flex; gap: 8px;">
+                <a href="${googleMapsUrl}" target="_blank" rel="noopener"
+                   style="flex: 1; padding: 6px; background: #4285f4; color: white; text-decoration: none; border-radius: 4px; text-align: center; font-size: 12px; white-space: nowrap;">
+                    Googleマップ
+                </a>
+                <a href="${appleMapsUrl}" target="_blank" rel="noopener"
+                   style="flex: 1; padding: 6px; background: #000000; color: white; text-decoration: none; border-radius: 4px; text-align: center; font-size: 12px; white-space: nowrap;">
+                    Appleマップ
+                </a>
+            </div>
+        </div>
+    `;
+
+    new maplibregl.Popup()
+        .setLngLat(feature.geometry.coordinates)
+        .setHTML(popupHTML)
+        .addTo(map);
 });
 
 // カーソルをポインターに変更
