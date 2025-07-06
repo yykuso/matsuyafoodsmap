@@ -1,0 +1,75 @@
+body, html { margin: 0; padding: 0; height: 100%; }
+
+#map { height: 100%; }
+
+#filterPanel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 999;
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(2px);
+    padding: 10px;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    max-width: calc(100% - 40px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#filterPanel select {
+    width: 100%;
+    margin-top: 4px;
+}
+
+#filterPanel div {
+    width: 100%;
+}
+
+/* スマートフォン向けのスタイル */
+@media screen and (max-width: 480px) {
+    #filterPanel {
+        right: 5px;
+        padding: 8px;
+        font-size: 14px;
+    }
+
+    #filterPanel select {
+        font-size: 14px;
+        padding: 6px;
+    }
+}
+
+/* 地図のポップアップスタイル */
+.store-popup {
+    min-width: 180px;
+}
+
+.store-name {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.map-links {
+    display: flex;
+    gap: 8px;
+}
+
+.map-link {
+    flex: 1;
+    padding: 6px;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.map-link.google {
+    background: #4285f4;
+}
+
+.map-link.apple {
+    background: #000000;
+}

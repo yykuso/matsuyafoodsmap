@@ -8,7 +8,6 @@ const map = new maplibregl.Map({
 	zoom: mapZoom
 });
 
-
 map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 map.addControl(new maplibregl.GeolocateControl(), 'bottom-right');
 map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
@@ -65,7 +64,58 @@ map.on('load', async() => {
 
     originalAllStoresGeoJSON = allStores;
 
+	const savedBrand = localStorage.getItem('selectedBrand') || 'all';
+	const savedCodeFilter = localStorage.getItem('selectedCodeFilter') || 'all';
+
+	// セレクト要素に復元
+	document.getElementById('brandSelect').value = savedBrand;
+	document.getElementById('codeFilterSelect').value = savedCodeFilter;
+
+	// フィルター再適用
+	applyBrandFilter(savedBrand);
+	applyCodeFilter(savedCodeFilter);
+
 });
+
+// ズームレベルをLocalStorageに保存
+map.on("moveend", () => {
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+
+    localStorage.setItem("mapCenter", JSON.stringify([center.lng, center.lat]));
+    localStorage.setItem("mapZoom", zoom);
+});
+
+// カーソルをポインターに変更
+map.on('mouseenter', 'allStoresLayer', () => {
+	map.getCanvas().style.cursor = 'pointer';
+});
+map.on('mouseleave', 'allStoresLayer', () => {
+	map.getCanvas().style.cursor = '';
+});
+
+// 地図の中心とズームレベルを初期化
+function initCenterZoom() {
+	// デフォルト設定
+	const defaultCenter = [136.2923, 35.3622];
+	const defaultZoom = 5;
+
+	// localStorageから取得
+	const savedCenter = localStorage.getItem("mapCenter");
+	const savedZoom = localStorage.getItem("mapZoom");
+
+	// 保存された値を使用
+	const mapCenter = savedCenter ? JSON.parse(savedCenter) : defaultCenter;
+	const mapZoom = savedZoom ? parseFloat(savedZoom) : defaultZoom;
+
+	return [mapCenter, mapZoom];
+}
+
+// 地図の中心とズームレベルを保存
+function saveCenterZoom(center, zoom) {
+	localStorage.setItem("mapCenter", JSON.stringify(center));
+	localStorage.setItem("mapZoom", zoom);
+}
 
 // ポップアップの表示
 map.on('click', 'allStoresLayer', (e) => {
@@ -86,19 +136,17 @@ map.on('click', 'allStoresLayer', (e) => {
 
     // ポップアップのHTML
     const popupHTML = `
-        <div style="min-width: 180px;">
-            <strong style="display: block; margin-bottom: 8px;">${store_name}</strong>
-            <div style="display: flex; gap: 8px;">
-                <a href="${googleMapsUrl}" target="_blank" rel="noopener"
-                   style="flex: 1; padding: 6px; background: #4285f4; color: white; text-decoration: none; border-radius: 4px; text-align: center; font-size: 12px; white-space: nowrap;">
-                    Googleマップ
-                </a>
-                <a href="${appleMapsUrl}" target="_blank" rel="noopener"
-                   style="flex: 1; padding: 6px; background: #000000; color: white; text-decoration: none; border-radius: 4px; text-align: center; font-size: 12px; white-space: nowrap;">
-                    Appleマップ
-                </a>
-            </div>
-        </div>
+		<div class="store-popup">
+			<strong class="store-name">${store_name}</strong>
+			<div class="map-links">
+				<a href="${googleMapsUrl}" target="_blank" rel="noopener" class="map-link google">
+				Googleマップ
+				</a>
+				<a href="${appleMapsUrl}" target="_blank" rel="noopener" class="map-link apple">
+				Appleマップ
+				</a>
+			</div>
+		</div>
     `;
 
     new maplibregl.Popup()
@@ -106,99 +154,6 @@ map.on('click', 'allStoresLayer', (e) => {
         .setHTML(popupHTML)
         .addTo(map);
 });
-
-// カーソルをポインターに変更
-map.on('mouseenter', 'allStoresLayer', () => {
-	map.getCanvas().style.cursor = 'pointer';
-});
-map.on('mouseleave', 'allStoresLayer', () => {
-	map.getCanvas().style.cursor = '';
-});
-
-// ズームレベルをCookieに保存
-map.on("moveend", () => {
-    const center = map.getCenter();
-    const zoom = map.getZoom();
-
-    // Cookieに保存
-    setCookie("mapCenter", JSON.stringify([center.lng, center.lat]), 30);
-    setCookie("mapZoom", zoom, 30);
-});
-
-// ブランドフィルターの変更
-document.getElementById('brandSelect').addEventListener('change', (e) => {
-	const brand = e.target.value;
-	if (brand === 'all') {
-		map.setFilter('allStoresLayer', null); // 全表示
-	} else {
-		map.setFilter('allStoresLayer', ['==', ['get', 'brand'], brand]);
-	}
-});
-
-// Codeフィルターの変更
-document.getElementById('codeFilterSelect').addEventListener('change', async (e) => {
-	const selectedFile = e.target.value;
-
-	if (selectedFile === 'all') {
-		map.getSource('allStores').setData(originalAllStoresGeoJSON);
-		return;
-	}
-
-	const response = await fetch(`./data/${selectedFile}`);
-	const csvText = await response.text();
-
-    const parsed = Papa.parse(csvText, {
-        header: false,
-        skipEmptyLines: true
-    });
-    const codeSet = new Set(parsed.data.map(row => row[0]));
-
-	const filteredFeatures = originalAllStoresGeoJSON.features.filter(f =>
-		codeSet.has(f.properties.code)
-	);
-
-	map.getSource('allStores').setData({
-		type: 'FeatureCollection',
-		features: filteredFeatures
-	});
-
-});
-
-// Cookie関連
-function initCenterZoom() {
-    // デフォルト設定
-    const defaultCenter = [136.2923, 35.3622];
-    const defaultZoom = 5;
-
-    // Cookieから情報を取得
-    const savedCenter = getCookie("mapCenter");
-    const savedZoom = getCookie("mapZoom");
-
-    // 保存された値を使用
-    const mapCenter = savedCenter ? JSON.parse(savedCenter) : defaultCenter;
-    const mapZoom = savedZoom ? parseFloat(savedZoom) : defaultZoom;
-
-    return [mapCenter, mapZoom];
-}
-
-function setCookie(name, value, days) {
-    const date = new Date();
-    date.setTime(date.getTime() + days * 24 * 60 * 60 * 1000);
-    const expires = "expires=" + date.toUTCString();
-    document.cookie = name + "=" + value + ";" + expires + ";path=/";
-}
-
-function getCookie(name) {
-    const cookies = document.cookie.split("; ");
-    for (let cookie of cookies) {
-        const [key, value] = cookie.split("=");
-        if (key === name) {
-            return decodeURIComponent(value);
-        }
-    }
-    return null;
-}
-
 
 // CSVをGeoJSONに変換
 async function csvToGeoJSON(csvUrl) {
@@ -244,3 +199,76 @@ async function csvToGeoJSON(csvUrl) {
 			};
 		});
 }
+
+// ブランド選択イベント
+document.getElementById('brandSelect').addEventListener('change', (e) => {
+	const brand = e.target.value;
+	localStorage.setItem('selectedBrand', brand); // 保存
+	applyBrandFilter(brand);
+});
+
+// 店舗限定選択イベント
+document.getElementById('codeFilterSelect').addEventListener('change', async (e) => {
+	const codeFile = e.target.value;
+	localStorage.setItem('selectedCodeFilter', codeFile); // 保存
+	await applyCodeFilter(codeFile);
+});
+
+// ブランドフィルター適用処理
+function applyBrandFilter(brand) {
+	if (brand === 'all') {
+		map.setFilter('allStoresLayer', null);
+	} else {
+		map.setFilter('allStoresLayer', ['==', ['get', 'brand'], brand]);
+	}
+}
+
+// 店舗限定フィルター適用処理
+async function applyCodeFilter(selectedFile) {
+	if (selectedFile === 'all') {
+		map.getSource('allStores').setData(originalAllStoresGeoJSON);
+		return;
+	}
+
+	const response = await fetch(`./data/${selectedFile}`);
+	const csvText = await response.text();
+	const parsed = Papa.parse(csvText, {
+		header: false,
+		skipEmptyLines: true
+	});
+	const codeSet = new Set(parsed.data.map(row => row[0]));
+
+	const filteredFeatures = originalAllStoresGeoJSON.features.filter(f =>
+		codeSet.has(f.properties.code)
+	);
+
+	map.getSource('allStores').setData({
+		type: 'FeatureCollection',
+		features: filteredFeatures
+	});
+}
+
+// ブランドと店舗限定の選択を保存する
+document.addEventListener('DOMContentLoaded', () => {
+	const brandSelect = document.getElementById('brandSelect');
+	const codeFilterSelect = document.getElementById('codeFilterSelect');
+
+  // 過去の選択を復元
+	const savedBrand = localStorage.getItem('selectedBrand');
+	const savedCodeFilter = localStorage.getItem('selectedCodeFilter');
+	if (savedBrand && brandSelect) {
+		brandSelect.value = savedBrand;
+	}
+	if (savedCodeFilter && codeFilterSelect) {
+		codeFilterSelect.value = savedCodeFilter;
+	}
+
+  // 選択が変更されたときに保存
+	brandSelect?.addEventListener('change', () => {
+		localStorage.setItem('selectedBrand', brandSelect.value);
+	});
+
+	codeFilterSelect?.addEventListener('change', () => {
+		localStorage.setItem('selectedCodeFilter', codeFilterSelect.value);
+	});
+});
