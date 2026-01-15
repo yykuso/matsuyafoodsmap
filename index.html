@@ -2,19 +2,79 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>松屋フーズマップ</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css" rel="stylesheet" />
-  <link href="./css/common.css" rel="stylesheet">
+  <title>松屋フーズマップ - 松屋・松のや・マイカリー食堂など全店舗の地図表示</title>
+  <meta name="description" content="松屋フーズ（松屋、松のや、マイカリー食堂、すし松、松軒中華食堂、ステーキ屋松など）の全国店舗を地図に表示。店舗限定メニューが一目でわかる便利な店舗検索マップです。">
+  <meta name="keywords" content="松屋,松のや,マイカリー食堂,すし松,福松,松屋フーズ,店舗検索,地図,牛めし,とんかつ,カレー,店舗限定メニュー">
+  <meta name="author" content="松屋フーズマップ">
+  <meta name="robots" content="index, follow">
+	<link rel="icon" type="image/x-icon" href="./img/favicon.ico" />
+  <link rel="icon" type="image/svg+xml" href="./img/icon.svg" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./img/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./img/favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./img/apple-touch-icon.png" />
+
+  <meta property="og:url" content="https://matsuya.yy-kuso.com/">
+  <meta property="og:title" content="松屋フーズマップ - 松屋・松のや全店舗表示">
+  <meta property="og:type" content="website">
+  <meta property="og:description" content="松屋フーズの全国店舗を地図に表示。店舗限定メニューが一目でわかる便利な店舗検索マップです。">
+  <meta property="og:image" content="https://matsuya.yy-kuso.com/img/banner.png" />
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@yy_kuso" />
+  <meta name="twitter:creator" content="@yy_kuso" />
+  <meta name="twitter:title" content="松屋フーズマップ - 松屋・松のや全店舗表示">
+  <meta name="twitter:description" content="松屋フーズの全国店舗を地図に表示。店舗限定メニューが一目でわかる便利な店舗検索マップです。">
+  <meta name="twitter:image" content="https://matsuya.yy-kuso.com/img/twbanner.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "松屋フーズマップ",
+    "url": "https://matsuya.yy-kuso.com/",
+    "applicationCategory": "LifestyleApplication",
+    "description": "松屋フーズグループ（松屋、松のや、マイカリー食堂など）の全国店舗を地図に表示できるWebアプリケーション",
+    "operatingSystem": "Web Browser",
+    "featureList": "店舗検索,ブランド別フィルター,店舗限定メニュー表示,地図表示"
+    "inLanguage": "ja",
+    "publisher": {
+      "@type": "Person",
+      "name": "yy_kuso",
+      "url": "https://x.com/yy_kuso"
+    },
+    "primaryImageOfPage": {
+      "@type": "ImageObject",
+      "url": "https://matsuya.yy-kuso.com/img/banner.png",
+      "width": 1200,
+      "height": 630
+    }
+  }
+  </script>
+
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QY0DYE3SCJ" defer></script>
+
+  <script src="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.js" defer></script>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.css"
+    crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
+
+  <link href="./css/common.css" rel="stylesheet" media="print" onload="this.media='all'" />
+
 </head>
 <body>
 
-<div id="map"></div>
+<h1 style="position: absolute; left: -9999px;">松屋フーズマップ - 店舗表示</h1>
 
-<div id="filterPanel">
-  <div>
-    ブランド：
-    <select id="brandSelect">
+<div id="map" role="application" aria-label="松屋フーズ店舗マップ"></div>
+
+<div id="filterPanel" role="complementary" aria-label="店舗フィルター">
+    <div>
+    <label for="brandSelect">ブランド：</label>
+    <select id="brandSelect" aria-label="ブランドを選択">
       <option value="all">すべて表示</option>
       <option value="松屋">松屋</option>
       <option value="松のや">松のや</option>
@@ -33,8 +93,8 @@
   </div>
 
   <div style="margin-top: 8px;">
-    店舗限定：
-    <select id="codeFilterSelect">
+    <label for="codeFilterSelect">店舗限定：</label>
+    <select id="codeFilterSelect" aria-label="店舗限定メニューを選択">
       <option value="all">すべて表示</option>
       <option value="ライスおかわり無料.csv">ライスおかわり無料</option>
       <optgroup label="実施中">
@@ -90,11 +150,15 @@
     </select>
   </div>
 </div>
-
-
-<script src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script src="./js/common.js"></script>
-
 </body>
+
+<script type="module" src="./js/common.js"></script>
+
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-QY0DYE3SCJ');
+</script>
+
 </html>
