@@ -3,7 +3,7 @@ const [mapCenter, mapZoom] = initCenterZoom();
 
 const map = new maplibregl.Map({
 	container: 'map',
-	style: 'https://tile.openstreetmap.jp/styles/osm-bright-ja/style.json',
+	style: 'https://gsi-cyberjapan.github.io/gsivectortile-mapbox-gl-js/pale.json',
 	center: mapCenter,
 	zoom: mapZoom
 });
