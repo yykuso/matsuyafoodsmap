@@ -2,7 +2,7 @@ let originalAllStoresGeoJSON = null;
 let currentCodeFilteredGeoJSON = null;
 let currentDisplayedGeoJSON = null;
 const BRAND_STORAGE_KEY = 'selectedBrandFilters';
-const BRAND_KEYS = ['matsuya', 'matsunoya', 'mycurry', 'other'];
+const BRAND_KEYS = ['matsuya', 'matsunoya', 'mycurry', 'other', 'specialty'];
 const [mapCenter, mapZoom] = initCenterZoom();
 
 const map = new maplibregl.Map({
@@ -485,6 +485,26 @@ function saveSelectedBrandFilters() {
 	localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(getSelectedBrandFilters()));
 }
 
+function enforceSpecialtySelectionRule() {
+	const checkboxes = Array.from(document.querySelectorAll('input[name="brandFilter"]'));
+	if (!checkboxes.length) {
+		return;
+	}
+
+	const specialtyCheckbox = checkboxes.find(checkbox => checkbox.value === 'specialty');
+	if (!specialtyCheckbox) {
+		return;
+	}
+
+	const checkedNonSpecialtyCount = checkboxes.filter(checkbox =>
+		checkbox.value !== 'specialty' && checkbox.checked
+	).length;
+
+	if (checkedNonSpecialtyCount >= 2) {
+		specialtyCheckbox.checked = false;
+	}
+}
+
 function restoreBrandFilters() {
 	const checkboxes = document.querySelectorAll('input[name="brandFilter"]');
 	if (!checkboxes.length) {
@@ -518,6 +538,8 @@ function restoreBrandFilters() {
 	checkboxes.forEach(checkbox => {
 		checkbox.checked = selectedFilters.includes(checkbox.value);
 	});
+
+	enforceSpecialtySelectionRule();
 }
 
 function hasBrandFlag(feature, filterKey) {
@@ -536,17 +558,43 @@ function hasBrandFlag(feature, filterKey) {
 	return false;
 }
 
+function getBrandOnlyFilters(selectedBrandFilters) {
+	return selectedBrandFilters.filter(filterKey => filterKey !== 'specialty');
+}
+
+function isStandaloneStore(feature) {
+	const brandFlagCount = [
+		feature.properties.has_matsuya,
+		feature.properties.has_matsunoya,
+		feature.properties.has_mycurry,
+		feature.properties.has_other
+	].filter(Boolean).length;
+
+	return brandFlagCount <= 1;
+}
+
 function matchesBrandFilter(feature, selectedBrandFilters) {
 	if (!selectedBrandFilters.length) {
 		return true;
 	}
 
-	return selectedBrandFilters.every(filterKey => hasBrandFlag(feature, filterKey));
+	const brandFilters = getBrandOnlyFilters(selectedBrandFilters);
+	const matchesBrand = !brandFilters.length || brandFilters.every(filterKey => hasBrandFlag(feature, filterKey));
+	if (!matchesBrand) {
+		return false;
+	}
+
+	if (selectedBrandFilters.includes('specialty')) {
+		return isStandaloneStore(feature);
+	}
+
+	return true;
 }
 
 // 単一/複数選択に応じて、表示する店舗名・色・公式リンクcodeをブランド側へ寄せる
 function getDisplayFeatureForSelectedBrand(feature, selectedBrandFilters) {
-	if (!selectedBrandFilters.length) {
+	const brandFilters = getBrandOnlyFilters(selectedBrandFilters);
+	if (!brandFilters.length) {
 		return feature;
 	}
 
@@ -556,13 +604,13 @@ function getDisplayFeatureForSelectedBrand(feature, selectedBrandFilters) {
 	}
 
 	const primaryBrandKey = getFilterKeyFromBrandName(feature.properties.primary_brand);
-	const isPrimaryBrandSelected = selectedBrandFilters.includes(primaryBrandKey);
+	const isPrimaryBrandSelected = brandFilters.includes(primaryBrandKey);
 
 	if (isPrimaryBrandSelected) {
 		return feature;
 	}
 
-	const selectedBrandKey = selectedBrandFilters.find(filterKey => Boolean(subStoreLabels[filterKey]));
+	const selectedBrandKey = brandFilters.find(filterKey => Boolean(subStoreLabels[filterKey]));
 	if (!selectedBrandKey) {
 		return feature;
 	}
@@ -588,6 +636,7 @@ function getDisplayFeatureForSelectedBrand(feature, selectedBrandFilters) {
 // ブランド選択イベント
 document.querySelectorAll('input[name="brandFilter"]').forEach(checkbox => {
 	checkbox.addEventListener('change', () => {
+		enforceSpecialtySelectionRule();
 		saveSelectedBrandFilters();
 		applyBrandFilter();
 	});
