@@ -1,4 +1,5 @@
 let originalAllStoresGeoJSON = null;
+let currentCodeFilteredGeoJSON = null;
 const [mapCenter, mapZoom] = initCenterZoom();
 
 const map = new maplibregl.Map({
@@ -64,6 +65,7 @@ map.on('load', async() => {
 	});
 
     originalAllStoresGeoJSON = allStores;
+	currentCodeFilteredGeoJSON = allStores;
 
 	const savedBrand = localStorage.getItem('selectedBrand') || 'all';
 	const savedCodeFilter = localStorage.getItem('selectedCodeFilter') || 'all';
@@ -74,7 +76,7 @@ map.on('load', async() => {
 
 	// フィルター再適用
 	applyBrandFilter(savedBrand);
-	applyCodeFilter(savedCodeFilter);
+	await applyCodeFilter(savedCodeFilter);
 
 });
 
@@ -134,12 +136,16 @@ map.on('click', 'allStoresLayer', (e) => {
     // GoogleマップとAppleマップのURL
     const googleMapsUrl = `https://www.google.com/maps/search/${encodedStoreName}`;
     const appleMapsUrl = `http://maps.apple.com/?q=${encodedStoreName}`;
+    const naviSiteUrl = `https://pkg.navitime.co.jp/matsuyafoods/spot/detail?code=${feature.properties.code}`;
 
     // ポップアップのHTML
     const popupHTML = `
 		<div class="store-popup">
 			<strong class="store-name">${store_name}</strong>
 			<div class="map-links">
+				<a href="${naviSiteUrl}" target="_blank" rel="noopener" class="map-link navi">
+				公式サイト
+				</a>
 				<a href="${googleMapsUrl}" target="_blank" rel="noopener" class="map-link google">
 				Googleマップ
 				</a>
@@ -222,12 +228,15 @@ function applyBrandFilter(brand) {
 	} else {
 		map.setFilter('allStoresLayer', ['==', ['get', 'brand'], brand]);
 	}
+	updateFilteredStoreCount();
 }
 
 // 店舗限定フィルター適用処理
 async function applyCodeFilter(selectedFile) {
 	if (selectedFile === 'all') {
-		map.getSource('allStores').setData(originalAllStoresGeoJSON);
+		currentCodeFilteredGeoJSON = originalAllStoresGeoJSON;
+		map.getSource('allStores').setData(currentCodeFilteredGeoJSON);
+		updateFilteredStoreCount();
 		return;
 	}
 
@@ -243,10 +252,28 @@ async function applyCodeFilter(selectedFile) {
 		codeSet.has(f.properties.code)
 	);
 
-	map.getSource('allStores').setData({
+	currentCodeFilteredGeoJSON = {
 		type: 'FeatureCollection',
 		features: filteredFeatures
-	});
+	};
+
+	map.getSource('allStores').setData(currentCodeFilteredGeoJSON);
+	updateFilteredStoreCount();
+}
+
+function updateFilteredStoreCount() {
+	const countElement = document.getElementById('storeCountValue');
+	if (!countElement || !currentCodeFilteredGeoJSON) {
+		return;
+	}
+
+	const selectedBrand = document.getElementById('brandSelect')?.value || 'all';
+	const features = currentCodeFilteredGeoJSON.features || [];
+	const filteredCount = selectedBrand === 'all'
+		? features.length
+		: features.filter(feature => feature.properties.brand === selectedBrand).length;
+
+	countElement.textContent = `${filteredCount}件`;
 }
 
 // ブランドと店舗限定の選択を保存する
