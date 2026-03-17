@@ -72,28 +72,18 @@
 <div id="map" role="application" aria-label="松屋フーズ店舗マップ"></div>
 
 <div id="filterPanel" role="complementary" aria-label="店舗フィルター">
-    <div>
-    <label for="brandSelect">ブランド：</label>
-    <select id="brandSelect" aria-label="ブランドを選択">
-      <option value="all">すべて表示</option>
-      <option value="松屋">松屋</option>
-      <option value="松のや">松のや</option>
-      <option value="マイカリー食堂">マイカリー食堂</option>
-      <option value="すし松">すし松</option>
-      <option value="福松">福松</option>
-      <option value="松軒中華食堂">松軒中華食堂</option>
-      <option value="松太郎">松太郎</option>
-      <option value="ステーキ屋松">ステーキ屋松</option>
-      <option value="ステーキ定食 松牛">ステーキ定食 松牛</option>
-      <option value="カフェ テラスヴェルト">カフェ テラスヴェルト</option>
-      <option value="麦のトリコ">麦のトリコ</option>
-      <option value="トゥックントゥックン">トゥックントゥックン</option>
-      <option value="松弁KITCHEN">松弁KITCHEN</option>
-    </select>
+  <div>
+    <span id="brandFilterLabel">ブランド</span>
+    <div id="brandFilterGroup" class="brand-filter-group" role="group" aria-labelledby="brandFilterLabel">
+      <label><input type="checkbox" name="brandFilter" value="matsuya"> 松屋</label>
+      <label><input type="checkbox" name="brandFilter" value="matsunoya"> 松のや</label>
+      <label><input type="checkbox" name="brandFilter" value="mycurry"> マイカリー食堂</label>
+      <label><input type="checkbox" name="brandFilter" value="other"> その他</label>
+    </div>
   </div>
 
   <div style="margin-top: 8px;">
-    <label for="codeFilterSelect">店舗限定：</label>
+    <label for="codeFilterSelect">店舗限定</label>
     <select id="codeFilterSelect" aria-label="店舗限定メニューを選択">
       <option value="all">すべて表示</option>
       <option value="ライスおかわり無料.csv">ライスおかわり無料</option>

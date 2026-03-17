@@ -1,5 +1,8 @@
 let originalAllStoresGeoJSON = null;
 let currentCodeFilteredGeoJSON = null;
+let currentDisplayedGeoJSON = null;
+const BRAND_STORAGE_KEY = 'selectedBrandFilters';
+const BRAND_KEYS = ['matsuya', 'matsunoya', 'mycurry', 'other'];
 const [mapCenter, mapZoom] = initCenterZoom();
 
 const map = new maplibregl.Map({
@@ -29,11 +32,11 @@ map.on('load', async() => {
         layout: {
             'circle-sort-key': [
                 'match',
-                ['get', 'brand'],
+				['get', 'primary_brand'],
                 '松屋', 2,          // 最上位
                 '松のや', 1,
                 'マイカリー食堂', 0,
-                -1                 // その他
+				-1                  // その他
             ]
         },
 		paint: {
@@ -45,7 +48,7 @@ map.on('load', async() => {
                 15, 10 // ズーム15では半径10px
             ],
 			'circle-color': [
-				'match', ['get', 'brand'],
+				'match', ['get', 'color_brand'],
 				'松屋', '#ea571e',
 				'松のや', '#00489a',
 				'すし松', '#000000',
@@ -59,6 +62,7 @@ map.on('load', async() => {
 				'福松', '#9eb18a',
 				'麦のトリコ', '#eccc6c',
 				'トゥックントゥックン', '#c30511',
+				'その他', '#666666',
 				/* default */ '#aaaaaa'
 			]
 		}
@@ -66,16 +70,15 @@ map.on('load', async() => {
 
     originalAllStoresGeoJSON = allStores;
 	currentCodeFilteredGeoJSON = allStores;
+	currentDisplayedGeoJSON = allStores;
 
-	const savedBrand = localStorage.getItem('selectedBrand') || 'all';
 	const savedCodeFilter = localStorage.getItem('selectedCodeFilter') || 'all';
 
-	// セレクト要素に復元
-	document.getElementById('brandSelect').value = savedBrand;
+	// フィルター要素を復元
 	document.getElementById('codeFilterSelect').value = savedCodeFilter;
+	restoreBrandFilters();
 
 	// フィルター再適用
-	applyBrandFilter(savedBrand);
 	await applyCodeFilter(savedCodeFilter);
 
 });
@@ -122,10 +125,13 @@ function saveCenterZoom(center, zoom) {
 
 // ポップアップの表示
 map.on('click', 'allStoresLayer', (e) => {
-    const feature = e.features[0];
-    const {
-        store_name,
-    } = feature.properties;
+	const clickedFeature = e.features[0];
+	// clickイベントのpropertiesには省略が混ざるため、表示中GeoJSONの完全データを引き直す
+	const popupFeature = findFeatureByCode(clickedFeature?.properties?.code) || clickedFeature;
+	const popupProperties = popupFeature.properties || clickedFeature.properties;
+	const {
+		store_name,
+	} = popupProperties;
 
     // 店舗名から括弧と中身を削除
     const cleanStoreName = store_name.replace(/（.*?）/g, '').replace(/\(.*?\)/g, '').trim();
@@ -136,16 +142,22 @@ map.on('click', 'allStoresLayer', (e) => {
     // GoogleマップとAppleマップのURL
     const googleMapsUrl = `https://www.google.com/maps/search/${encodedStoreName}`;
     const appleMapsUrl = `http://maps.apple.com/?q=${encodedStoreName}`;
-    const naviSiteUrl = `https://pkg.navitime.co.jp/matsuyafoods/spot/detail?code=${feature.properties.code}`;
+			// 公式サイトは主店舗+併設ブランドの全リンクをまとめて生成する
+			const officialSiteLinks = buildOfficialSiteLinks(popupProperties);
+			const officialLinksHTML = officialSiteLinks.map(link => {
+				const theme = getBrandTheme(link.colorBrand || link.label);
+				const officialSiteUrl = `https://pkg.navitime.co.jp/matsuyafoods/spot/detail?code=${link.code}`;
+				return `<a href="${officialSiteUrl}" target="_blank" rel="noopener" class="map-link official-link" style="background:${theme.background};color:${theme.color};">${link.label}</a>`;
+			}).join('');
 
     // ポップアップのHTML
     const popupHTML = `
 		<div class="store-popup">
 			<strong class="store-name">${store_name}</strong>
+			<div class="official-links">
+				${officialLinksHTML}
+			</div>
 			<div class="map-links">
-				<a href="${naviSiteUrl}" target="_blank" rel="noopener" class="map-link navi">
-				公式サイト
-				</a>
 				<a href="${googleMapsUrl}" target="_blank" rel="noopener" class="map-link google">
 				Googleマップ
 				</a>
@@ -157,7 +169,7 @@ map.on('click', 'allStoresLayer', (e) => {
     `;
 
     new maplibregl.Popup()
-        .setLngLat(feature.geometry.coordinates)
+		.setLngLat(clickedFeature.geometry.coordinates)
         .setHTML(popupHTML)
         .addTo(map);
 });
@@ -172,15 +184,84 @@ async function csvToGeoJSON(csvUrl) {
 				skipEmptyLines: true
 			});
 
+			// 可変フォーマットCSVを共通形に正規化（旧フォーマット座標ずれもここで吸収）
+			const normalizedRows = parsed.data.map(row => {
+				const brandCode = parseInt(row.brand, 10) || 0;
+				const rawBname = typeof row.bname === 'string' ? row.bname.trim() : '';
+				let bname = rawBname;
+
+				let lon = parseFloat(row.longitude);
+				let lat = parseFloat(row.latitude);
+
+				// bname列が未設定の行（旧フォーマット互換）は座標列を補正する
+				if (!Number.isFinite(lat)) {
+					const shiftedLon = parseFloat(row.bname);
+					const shiftedLat = parseFloat(row.longitude);
+					if (Number.isFinite(shiftedLon) && Number.isFinite(shiftedLat)) {
+						lon = shiftedLon;
+						lat = shiftedLat;
+						bname = '';
+					}
+				}
+
+				if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+					return null;
+				}
+
+				const parsedMain = parseInt(row.main, 10);
+				const mainFlag = Number.isNaN(parsedMain) ? 1 : parsedMain;
+				const brandFlags = decodeBrandFlags(brandCode);
+				const rowPrimaryBrand = resolveRowPrimaryBrand(row.name, brandFlags, bname);
+				const rowColorBrand = resolveColorBrand(brandFlags, bname, rowPrimaryBrand);
+				const coordKey = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+
+				return {
+					code: row.code,
+					storeName: row.name,
+					mainFlag,
+					brandCode,
+					bname,
+					brandFlags,
+					rowPrimaryBrand,
+					rowColorBrand,
+					lon,
+					lat,
+					coordKey
+				};
+			}).filter(Boolean);
+
+			// 同一座標+同一brand_code単位で、ブランド側の名称/コードを逆引きできる辞書を作る
+			const subStoresByCoordBrand = new Map();
+			normalizedRows.forEach(row => {
+				const filterKey = getFilterKeyFromBrandName(row.rowPrimaryBrand);
+				if (!filterKey) {
+					return;
+				}
+
+				const key = `${row.coordKey}|${row.brandCode}`;
+				const subStores = subStoresByCoordBrand.get(key) || {};
+				subStores[filterKey] = {
+					code: row.code,
+					store_name: row.storeName,
+					color_brand: row.rowColorBrand,
+					brand_name: row.rowPrimaryBrand,
+					main: row.mainFlag
+				};
+				subStoresByCoordBrand.set(key, subStores);
+			});
+
+			// 地図描画の実体はmain!=0を採用し、表示名や公式リンクはsub_store_labelsで補完する
+			const mainRows = normalizedRows.filter(row => row.mainFlag !== 0);
+
 			// 使用済みの座標を記録する（重複チェック）
 			const usedCoords = new Map();
 
 			return {
 				type: "FeatureCollection",
-				features: parsed.data.map(row => {
-					let lon = parseFloat(row.longitude);
-					let lat = parseFloat(row.latitude);
-					const key = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+				features: mainRows.map(row => {
+					let lon = row.lon;
+					let lat = row.lat;
+					const key = row.coordKey;
 
 					// 重複がある場合はオフセットを少し加える
 					let offsetCount = usedCoords.get(key) || 0;
@@ -190,12 +271,24 @@ async function csvToGeoJSON(csvUrl) {
 					lon += offsetStep * offsetCount;
 					usedCoords.set(key, offsetCount + 1);
 
+					// ポップアップ差し替え用: 同座標・同ブランドコードの併設候補を紐づける
+					const subStoreKey = `${row.coordKey}|${row.brandCode}`;
+
 					return {
 						type: "Feature",
 						properties: {
 							code: row.code,
-							store_name: row.name,
-							brand: row.brand
+							store_name: row.storeName,
+							main: row.mainFlag,
+							brand_code: row.brandCode,
+							bname: row.bname,
+							primary_brand: row.rowPrimaryBrand,
+							color_brand: row.rowColorBrand,
+							has_matsuya: row.brandFlags.matsuya,
+							has_matsunoya: row.brandFlags.matsunoya,
+							has_mycurry: row.brandFlags.mycurry,
+							has_other: row.brandFlags.other,
+							sub_store_labels: subStoresByCoordBrand.get(subStoreKey) || null
 						},
 						geometry: {
 							type: "Point",
@@ -207,11 +300,297 @@ async function csvToGeoJSON(csvUrl) {
 		});
 }
 
+// ブランド判定ヘルパー
+function decodeBrandFlags(brandCode) {
+	const code = Number.isFinite(brandCode) ? brandCode : 0;
+	return {
+		matsuya: code % 10 === 1,
+		matsunoya: Math.floor(code / 10) % 10 === 1,
+		mycurry: Math.floor(code / 100) % 10 === 1,
+		other: Math.floor(code / 1000) % 10 === 1
+	};
+}
+
+function resolvePrimaryBrand(brandFlags) {
+	if (brandFlags.matsuya) {
+		return '松屋';
+	}
+	if (brandFlags.matsunoya) {
+		return '松のや';
+	}
+	if (brandFlags.mycurry) {
+		return 'マイカリー食堂';
+	}
+	return 'その他';
+}
+
+function resolveRowPrimaryBrand(storeName, brandFlags, bname) {
+	const normalizedName = typeof storeName === 'string' ? storeName.trim() : '';
+	if (normalizedName.startsWith('松屋')) {
+		return '松屋';
+	}
+	if (normalizedName.startsWith('松のや')) {
+		return '松のや';
+	}
+	if (normalizedName.startsWith('マイカリー食堂')) {
+		return 'マイカリー食堂';
+	}
+	if (brandFlags.other && bname) {
+		return bname;
+	}
+	return resolvePrimaryBrand(brandFlags);
+}
+
+function getFilterKeyFromBrandName(brandName) {
+	if (brandName === '松屋') {
+		return 'matsuya';
+	}
+	if (brandName === '松のや') {
+		return 'matsunoya';
+	}
+	if (brandName === 'マイカリー食堂') {
+		return 'mycurry';
+	}
+	if (brandName) {
+		return 'other';
+	}
+	return null;
+}
+
+function resolveColorBrand(brandFlags, bname, primaryBrand = resolvePrimaryBrand(brandFlags)) {
+	if (brandFlags.other && bname) {
+		return bname;
+	}
+	return primaryBrand;
+}
+
+function getBrandColor(brandName) {
+	if (brandName === '松屋') {
+		return '#ea571e';
+	}
+	if (brandName === '松のや') {
+		return '#00489a';
+	}
+	if (brandName === 'すし松') {
+		return '#000000';
+	}
+	if (brandName === 'マイカリー食堂') {
+		return '#e7b61b';
+	}
+	if (brandName === '松軒中華食堂' || brandName === '松太郎') {
+		return '#ea2f3d';
+	}
+	if (brandName === '松弁KITCHEN') {
+		return '#750001';
+	}
+	if (brandName === 'ステーキ屋松' || brandName === 'ステーキ定食 松牛') {
+		return '#e13831';
+	}
+	if (brandName === 'カフェ テラスヴェルト') {
+		return '#005634';
+	}
+	if (brandName === '福松') {
+		return '#9eb18a';
+	}
+	if (brandName === '麦のトリコ') {
+		return '#eccc6c';
+	}
+	if (brandName === 'トゥックントゥックン') {
+		return '#c30511';
+	}
+	return '#666666';
+}
+
+function getBrandTheme(brandName) {
+	const background = getBrandColor(brandName);
+	const darkTextBrands = ['マイカリー食堂', '福松', '麦のトリコ'];
+	return {
+		background,
+		color: darkTextBrands.includes(brandName) ? '#222222' : '#ffffff'
+	};
+}
+
+// 公式サイトリンクは主店舗を先頭に、併設ブランド側リンクを重複なく追加する
+function buildOfficialSiteLinks(properties) {
+	const links = [];
+	const usedLinkKeys = new Set();
+
+	const addLink = (code, label, colorBrand) => {
+		if (!code || !label) {
+			return;
+		}
+		const linkKey = `${code}|${label}`;
+		if (usedLinkKeys.has(linkKey)) {
+			return;
+		}
+		links.push({
+			code,
+			label,
+			colorBrand: colorBrand || label
+		});
+		usedLinkKeys.add(linkKey);
+	};
+
+	const primaryCode = properties.primary_code || properties.code;
+	const primaryBrand = properties.primary_brand || '公式サイト';
+	const primaryColorBrand = properties.primary_color_brand || properties.color_brand || primaryBrand;
+	addLink(primaryCode, primaryBrand, primaryColorBrand);
+
+	const subStoreLabels = properties.sub_store_labels || {};
+	Object.values(subStoreLabels).forEach(subStore => {
+		addLink(
+			subStore.code,
+			subStore.brand_name || subStore.store_name || '公式サイト',
+			subStore.color_brand || subStore.brand_name
+		);
+	});
+
+	const preferredOrder = ['松屋', '松のや', 'マイカリー食堂'];
+	links.sort((a, b) => {
+		const aIndex = preferredOrder.indexOf(a.label);
+		const bIndex = preferredOrder.indexOf(b.label);
+		const aScore = aIndex === -1 ? preferredOrder.length : aIndex;
+		const bScore = bIndex === -1 ? preferredOrder.length : bIndex;
+		if (aScore !== bScore) {
+			return aScore - bScore;
+		}
+		return a.label.localeCompare(b.label, 'ja');
+	});
+
+	return links;
+}
+
+function normalizeStoreCode(code) {
+	const value = String(code ?? '').trim();
+	const noLeadingZero = value.replace(/^0+/, '');
+	return noLeadingZero || '0';
+}
+
+// 表示中GeoJSONから該当店舗を特定し、ポップアップで使う完全プロパティを取得する
+function findFeatureByCode(code) {
+	const normalizedCode = normalizeStoreCode(code);
+	const features = currentDisplayedGeoJSON?.features || [];
+	return features.find(feature =>
+		normalizeStoreCode(feature?.properties?.code) === normalizedCode
+	) || null;
+}
+
+function getSelectedBrandFilters() {
+	return Array.from(document.querySelectorAll('input[name="brandFilter"]:checked'))
+		.map(input => input.value)
+		.filter(value => BRAND_KEYS.includes(value));
+}
+
+function saveSelectedBrandFilters() {
+	localStorage.setItem(BRAND_STORAGE_KEY, JSON.stringify(getSelectedBrandFilters()));
+}
+
+function restoreBrandFilters() {
+	const checkboxes = document.querySelectorAll('input[name="brandFilter"]');
+	if (!checkboxes.length) {
+		return;
+	}
+
+	let selectedFilters = [];
+	const savedFilters = localStorage.getItem(BRAND_STORAGE_KEY);
+
+	if (savedFilters) {
+		try {
+			const parsed = JSON.parse(savedFilters);
+			if (Array.isArray(parsed)) {
+				selectedFilters = parsed.filter(value => BRAND_KEYS.includes(value));
+			}
+		} catch (e) {
+			selectedFilters = [];
+		}
+	} else {
+		const legacyBrand = localStorage.getItem('selectedBrand');
+		const legacyMap = {
+			'松屋': 'matsuya',
+			'松のや': 'matsunoya',
+			'マイカリー食堂': 'mycurry'
+		};
+		if (legacyBrand && legacyBrand !== 'all') {
+			selectedFilters = [legacyMap[legacyBrand] || 'other'];
+		}
+	}
+
+	checkboxes.forEach(checkbox => {
+		checkbox.checked = selectedFilters.includes(checkbox.value);
+	});
+}
+
+function hasBrandFlag(feature, filterKey) {
+	if (filterKey === 'matsuya') {
+		return Boolean(feature.properties.has_matsuya);
+	}
+	if (filterKey === 'matsunoya') {
+		return Boolean(feature.properties.has_matsunoya);
+	}
+	if (filterKey === 'mycurry') {
+		return Boolean(feature.properties.has_mycurry);
+	}
+	if (filterKey === 'other') {
+		return Boolean(feature.properties.has_other);
+	}
+	return false;
+}
+
+function matchesBrandFilter(feature, selectedBrandFilters) {
+	if (!selectedBrandFilters.length) {
+		return true;
+	}
+
+	return selectedBrandFilters.every(filterKey => hasBrandFlag(feature, filterKey));
+}
+
+// 単一/複数選択に応じて、表示する店舗名・色・公式リンクcodeをブランド側へ寄せる
+function getDisplayFeatureForSelectedBrand(feature, selectedBrandFilters) {
+	if (!selectedBrandFilters.length) {
+		return feature;
+	}
+
+	const subStoreLabels = feature.properties.sub_store_labels;
+	if (!subStoreLabels) {
+		return feature;
+	}
+
+	const primaryBrandKey = getFilterKeyFromBrandName(feature.properties.primary_brand);
+	const isPrimaryBrandSelected = selectedBrandFilters.includes(primaryBrandKey);
+
+	if (isPrimaryBrandSelected) {
+		return feature;
+	}
+
+	const selectedBrandKey = selectedBrandFilters.find(filterKey => Boolean(subStoreLabels[filterKey]));
+	if (!selectedBrandKey) {
+		return feature;
+	}
+
+	const subStore = subStoreLabels[selectedBrandKey];
+	if (!subStore) {
+		return feature;
+	}
+
+	return {
+		...feature,
+		properties: {
+			...feature.properties,
+			primary_code: feature.properties.primary_code || feature.properties.code,
+			primary_color_brand: feature.properties.primary_color_brand || feature.properties.color_brand,
+			code: subStore.code || feature.properties.code,
+			store_name: subStore.store_name || feature.properties.store_name,
+			color_brand: subStore.color_brand || feature.properties.color_brand
+		}
+	};
+}
+
 // ブランド選択イベント
-document.getElementById('brandSelect').addEventListener('change', (e) => {
-	const brand = e.target.value;
-	localStorage.setItem('selectedBrand', brand); // 保存
-	applyBrandFilter(brand);
+document.querySelectorAll('input[name="brandFilter"]').forEach(checkbox => {
+	checkbox.addEventListener('change', () => {
+		saveSelectedBrandFilters();
+		applyBrandFilter();
+	});
 });
 
 // 店舗限定選択イベント
@@ -221,13 +600,24 @@ document.getElementById('codeFilterSelect').addEventListener('change', async (e)
 	await applyCodeFilter(codeFile);
 });
 
-// ブランドフィルター適用処理
-function applyBrandFilter(brand) {
-	if (brand === 'all') {
-		map.setFilter('allStoresLayer', null);
-	} else {
-		map.setFilter('allStoresLayer', ['==', ['get', 'brand'], brand]);
+// ブランドフィルター適用処理（複数選択時はAND）
+function applyBrandFilter() {
+	if (!currentCodeFilteredGeoJSON || !map.getSource('allStores')) {
+		return;
 	}
+
+	const selectedBrandFilters = getSelectedBrandFilters();
+	// 1) ブランド条件で抽出 2) 表示名/コードを選択ブランド側に差し替え
+	const filteredFeatures = currentCodeFilteredGeoJSON.features
+		.filter(feature => matchesBrandFilter(feature, selectedBrandFilters))
+		.map(feature => getDisplayFeatureForSelectedBrand(feature, selectedBrandFilters));
+
+	currentDisplayedGeoJSON = {
+		type: 'FeatureCollection',
+		features: filteredFeatures
+	};
+
+	map.getSource('allStores').setData(currentDisplayedGeoJSON);
 	updateFilteredStoreCount();
 }
 
@@ -235,8 +625,7 @@ function applyBrandFilter(brand) {
 async function applyCodeFilter(selectedFile) {
 	if (selectedFile === 'all') {
 		currentCodeFilteredGeoJSON = originalAllStoresGeoJSON;
-		map.getSource('allStores').setData(currentCodeFilteredGeoJSON);
-		updateFilteredStoreCount();
+		applyBrandFilter();
 		return;
 	}
 
@@ -257,46 +646,15 @@ async function applyCodeFilter(selectedFile) {
 		features: filteredFeatures
 	};
 
-	map.getSource('allStores').setData(currentCodeFilteredGeoJSON);
-	updateFilteredStoreCount();
+	applyBrandFilter();
 }
 
 function updateFilteredStoreCount() {
 	const countElement = document.getElementById('storeCountValue');
-	if (!countElement || !currentCodeFilteredGeoJSON) {
+	if (!countElement) {
 		return;
 	}
 
-	const selectedBrand = document.getElementById('brandSelect')?.value || 'all';
-	const features = currentCodeFilteredGeoJSON.features || [];
-	const filteredCount = selectedBrand === 'all'
-		? features.length
-		: features.filter(feature => feature.properties.brand === selectedBrand).length;
-
-	countElement.textContent = `${filteredCount}件`;
+	const visibleFeatures = currentDisplayedGeoJSON?.features || [];
+	countElement.textContent = `${visibleFeatures.length}件`;
 }
-
-// ブランドと店舗限定の選択を保存する
-document.addEventListener('DOMContentLoaded', () => {
-	const brandSelect = document.getElementById('brandSelect');
-	const codeFilterSelect = document.getElementById('codeFilterSelect');
-
-  // 過去の選択を復元
-	const savedBrand = localStorage.getItem('selectedBrand');
-	const savedCodeFilter = localStorage.getItem('selectedCodeFilter');
-	if (savedBrand && brandSelect) {
-		brandSelect.value = savedBrand;
-	}
-	if (savedCodeFilter && codeFilterSelect) {
-		codeFilterSelect.value = savedCodeFilter;
-	}
-
-  // 選択が変更されたときに保存
-	brandSelect?.addEventListener('change', () => {
-		localStorage.setItem('selectedBrand', brandSelect.value);
-	});
-
-	codeFilterSelect?.addEventListener('change', () => {
-		localStorage.setItem('selectedCodeFilter', codeFilterSelect.value);
-	});
-});
