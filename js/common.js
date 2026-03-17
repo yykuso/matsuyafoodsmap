@@ -230,9 +230,13 @@ async function csvToGeoJSON(csvUrl) {
 				};
 			}).filter(Boolean);
 
-			// 同一座標+同一brand_code単位で、ブランド側の名称/コードを逆引きできる辞書を作る
+			// 同一座標+同一brand_code単位で、併設側(main=0)の名称/コードを逆引きできる辞書を作る
 			const subStoresByCoordBrand = new Map();
 			normalizedRows.forEach(row => {
+				if (row.mainFlag !== 0) {
+					return;
+				}
+
 				const filterKey = getFilterKeyFromBrandName(row.rowPrimaryBrand);
 				if (!filterKey) {
 					return;
