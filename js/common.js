@@ -19,6 +19,7 @@ map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
 // 地図の初期化
 map.on('load', async() => {
 	const allStores = await csvToGeoJSON('./data/matsuyafoods.csv');
+	await loadCodeFilterOptions();
 
 	map.addSource('allStores', {
 		type: 'geojson',
@@ -72,14 +73,20 @@ map.on('load', async() => {
 	currentCodeFilteredGeoJSON = allStores;
 	currentDisplayedGeoJSON = allStores;
 
+	const codeFilterSelect = document.getElementById('codeFilterSelect');
 	const savedCodeFilter = localStorage.getItem('selectedCodeFilter') || 'all';
+	const hasSavedOption = Array.from(codeFilterSelect.options).some(option => option.value === savedCodeFilter);
+	const initialCodeFilter = hasSavedOption ? savedCodeFilter : 'all';
+	if (!hasSavedOption) {
+		localStorage.setItem('selectedCodeFilter', initialCodeFilter);
+	}
 
 	// フィルター要素を復元
-	document.getElementById('codeFilterSelect').value = savedCodeFilter;
+	codeFilterSelect.value = initialCodeFilter;
 	restoreBrandFilters();
 
 	// フィルター再適用
-	await applyCodeFilter(savedCodeFilter);
+	await applyCodeFilter(initialCodeFilter);
 
 });
 
@@ -700,6 +707,66 @@ async function applyCodeFilter(selectedFile) {
 	};
 
 	applyBrandFilter();
+}
+
+async function loadCodeFilterOptions() {
+	try {
+		const response = await fetch('./data/codeFilterOptions.csv');
+		if (!response.ok) {
+			return;
+		}
+
+		const csvText = await response.text();
+		const parsed = Papa.parse(csvText, {
+			header: true,
+			skipEmptyLines: true
+		});
+
+		const rows = parsed.data || [];
+		if (!rows.length) {
+			return;
+		}
+
+		const select = document.getElementById('codeFilterSelect');
+		const fragment = document.createDocumentFragment();
+		const groups = new Map();
+
+		rows.forEach(row => {
+			const groupName = String(row.group ?? row['\ufeffgroup'] ?? '').trim();
+			const value = String(row.value ?? '').trim();
+			const label = String(row.label ?? '').trim();
+
+			if (!value || !label) {
+				return;
+			}
+
+			const option = document.createElement('option');
+			option.value = value;
+			option.textContent = label;
+
+			if (!groupName) {
+				fragment.appendChild(option);
+				return;
+			}
+
+			let optgroup = groups.get(groupName);
+			if (!optgroup) {
+				optgroup = document.createElement('optgroup');
+				optgroup.label = groupName;
+				groups.set(groupName, optgroup);
+				fragment.appendChild(optgroup);
+			}
+
+			optgroup.appendChild(option);
+		});
+
+		if (fragment.childNodes.length > 0) {
+			select.innerHTML = '';
+			select.appendChild(fragment);
+		}
+	} catch (error) {
+		console.warn('codeFilterOptions.csvの読み込みに失敗しました。既存の選択肢を使用します。', error);
+	}
 }
 
 function updateFilteredStoreCount() {
