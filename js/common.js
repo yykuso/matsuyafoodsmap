@@ -7,7 +7,7 @@ const [mapCenter, mapZoom] = initCenterZoom();
 
 const map = new maplibregl.Map({
 	container: 'map',
-	style: 'https://gsi-cyberjapan.github.io/gsivectortile-mapbox-gl-js/pale.json',
+	style: 'https://tile.openstreetmap.jp/styles/maptiler-basic-ja/style.json',
 	center: mapCenter,
 	zoom: mapZoom
 });
@@ -137,33 +137,39 @@ map.on('click', 'allStoresLayer', (e) => {
 	const popupFeature = findFeatureByCode(clickedFeature?.properties?.code) || clickedFeature;
 	const popupProperties = popupFeature.properties || clickedFeature.properties;
 	const {
+		code,
 		store_name,
+		longitude,
+		latitude,
 	} = popupProperties;
+	const numericCode = parseStoreCode(code);
+	const shouldUseCoordinateLinks = numericCode >= 100000;
 
     // 店舗名から括弧と中身を削除
     const cleanStoreName = store_name.replace(/（.*?）/g, '').replace(/\(.*?\)/g, '').trim();
 
-    // 検索用にエンコードした店舗名
-    const encodedStoreName = encodeURIComponent(cleanStoreName);
-
-    // GoogleマップとAppleマップのURL
-    const googleMapsUrl = `https://www.google.com/maps/search/${encodedStoreName}`;
-    const appleMapsUrl = `http://maps.apple.com/?q=${encodedStoreName}`;
-			// 公式サイトは主店舗+併設ブランドの全リンクをまとめて生成する
-			const officialSiteLinks = buildOfficialSiteLinks(popupProperties);
-			const officialLinksHTML = officialSiteLinks.map(link => {
-				const theme = getBrandTheme(link.colorBrand || link.label);
-				const officialSiteUrl = `https://pkg.navitime.co.jp/matsuyafoods/spot/detail?code=${link.code}`;
-				return `<a href="${officialSiteUrl}" target="_blank" rel="noopener" class="map-link official-link" style="background:${theme.background};color:${theme.color};">${link.label}</a>`;
-			}).join('');
+	const googleMapsUrl = shouldUseCoordinateLinks
+		? buildGoogleMapsCoordinateUrl(longitude, latitude)
+		: `https://www.google.com/maps/search/${encodeURIComponent(cleanStoreName)}`;
+	const appleMapsUrl = shouldUseCoordinateLinks
+		? buildAppleMapsCoordinateUrl(longitude, latitude)
+		: `http://maps.apple.com/?q=${encodeURIComponent(cleanStoreName)}`;
+	const officialLinksHTML = shouldUseCoordinateLinks
+		? ''
+		: buildOfficialSiteLinks(popupProperties).map(link => {
+			const theme = getBrandTheme(link.colorBrand || link.label);
+			const officialSiteUrl = `https://pkg.navitime.co.jp/matsuyafoods/spot/detail?code=${link.code}`;
+			return `<a href="${officialSiteUrl}" target="_blank" rel="noopener" class="map-link official-link" style="background:${theme.background};color:${theme.color};">${link.label}</a>`;
+		}).join('');
 
     // ポップアップのHTML
     const popupHTML = `
 		<div class="store-popup">
 			<strong class="store-name">${store_name}</strong>
+			${officialLinksHTML ? `
 			<div class="official-links">
 				${officialLinksHTML}
-			</div>
+			</div>` : ''}
 			<div class="map-links">
 				<a href="${googleMapsUrl}" target="_blank" rel="noopener" class="map-link google">
 				Googleマップ
@@ -293,6 +299,8 @@ async function csvToGeoJSON(csvUrl) {
 							main: row.mainFlag,
 							brand_code: row.brandCode,
 							bname: row.bname,
+							longitude: row.lon,
+							latitude: row.lat,
 							primary_brand: row.rowPrimaryBrand,
 							color_brand: row.rowColorBrand,
 							has_matsuya: row.brandFlags.matsuya,
@@ -475,6 +483,28 @@ function normalizeStoreCode(code) {
 	const value = String(code ?? '').trim();
 	const noLeadingZero = value.replace(/^0+/, '');
 	return noLeadingZero || '0';
+}
+
+function parseStoreCode(code) {
+	return parseInt(normalizeStoreCode(code), 10) || 0;
+}
+
+function buildGoogleMapsCoordinateUrl(longitude, latitude) {
+	const lon = Number.parseFloat(longitude);
+	const lat = Number.parseFloat(latitude);
+	if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+		return 'https://www.google.com/maps';
+	}
+	return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+}
+
+function buildAppleMapsCoordinateUrl(longitude, latitude) {
+	const lon = Number.parseFloat(longitude);
+	const lat = Number.parseFloat(latitude);
+	if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+		return 'http://maps.apple.com/';
+	}
+	return `http://maps.apple.com/?ll=${lat},${lon}&q=${lat},${lon}`;
 }
 
 // 表示中GeoJSONから該当店舗を特定し、ポップアップで使う完全プロパティを取得する
