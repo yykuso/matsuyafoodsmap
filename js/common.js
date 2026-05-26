@@ -15,6 +15,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
 map.addControl(new maplibregl.GeolocateControl(), 'bottom-right');
 map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
+initInfoModal();
 
 // 地図の初期化
 map.on('load', async() => {
@@ -807,4 +808,43 @@ function updateFilteredStoreCount() {
 
 	const visibleFeatures = currentDisplayedGeoJSON?.features || [];
 	countElement.textContent = `${visibleFeatures.length}件`;
+}
+
+function initInfoModal() {
+	const infoButton = document.getElementById('infoLinkButton');
+	const infoModal = document.getElementById('infoModal');
+	const closeButton = document.getElementById('infoModalCloseButton');
+
+	if (!infoButton || !infoModal || !closeButton) {
+		return;
+	}
+
+	const closeModal = () => {
+		infoModal.classList.remove('is-open');
+		infoModal.setAttribute('aria-hidden', 'true');
+		document.body.classList.remove('modal-open');
+	};
+
+	const openModal = () => {
+		infoModal.classList.add('is-open');
+		infoModal.setAttribute('aria-hidden', 'false');
+		document.body.classList.add('modal-open');
+		closeButton.focus();
+	};
+
+	infoButton.addEventListener('click', openModal);
+	closeButton.addEventListener('click', closeModal);
+
+	infoModal.addEventListener('click', (event) => {
+		const closeTarget = event.target.closest('[data-close-info-modal]');
+		if (closeTarget) {
+			closeModal();
+		}
+	});
+
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape' && infoModal.classList.contains('is-open')) {
+			closeModal();
+		}
+	});
 }

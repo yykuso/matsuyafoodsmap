@@ -73,7 +73,10 @@
 
 <div id="filterPanel" role="complementary" aria-label="店舗フィルター">
   <div>
-    <span id="brandFilterLabel">フィルタ（AND検索）</span>
+    <div class="filter-panel-header">
+      <span id="brandFilterLabel">フィルタ（AND検索）</span>
+      <button id="infoLinkButton" type="button" class="info-link-button" aria-haspopup="dialog" aria-controls="infoModal">info</button>
+    </div>
     <div id="brandFilterGroup" class="brand-filter-group" role="group" aria-labelledby="brandFilterLabel">
       <label><input type="checkbox" name="brandFilter" value="matsuya"> 松屋</label>
       <label><input type="checkbox" name="brandFilter" value="matsunoya"> 松のや</label>
@@ -91,6 +94,23 @@
   </div>
 
   <div id="storeCount" aria-live="polite">表示店舗数：<span id="storeCountValue">-</span></div>
+</div>
+
+<div id="infoModal" class="info-modal" aria-hidden="true">
+  <div class="info-modal-backdrop" data-close-info-modal="true"></div>
+  <div class="info-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
+    <button id="infoModalCloseButton" type="button" class="info-modal-close" aria-label="閉じる">×</button>
+    <h2 id="infoModalTitle">リンク情報</h2>
+    <p class="info-modal-description">このマップや関連情報へのリンクです。</p>
+    <ul class="info-link-list">
+      <li><a href="https://www.matsuyafoods.co.jp/" target="_blank" rel="noopener">松屋フーズ公式サイト</a></li>
+      <li><a href="https://pkg.navitime.co.jp/matsuyafoods/" target="_blank" rel="noopener">店舗検索（Navitime）</a></li>
+      <li><a href="https://www.matsuyafoods-holdings.co.jp/shop/kaigai.html" target="_blank" rel="noopener">海外店舗情報</a></li>
+      <li><a href="https://www.matsuyafoods.co.jp/matsuya/kobetsu/gentei.html" target="_blank" rel="noopener">松屋 期間限定メニュー</a></li>
+      <li><a href="https://github.com/yykuso/matsuyafoodsmap" target="_blank" rel="noopener">GitHubリポジトリ</a></li>
+      <li><a href="https://x.com/yy_kuso" target="_blank" rel="noopener">作成者 Twitter（@yy_kuso）</a></li>
+    </ul>
+  </div>
 </div>
 </body>
 
