@@ -7,7 +7,7 @@ const [mapCenter, mapZoom] = initCenterZoom();
 
 const map = new maplibregl.Map({
 	container: 'map',
-	style: 'https://tile.openstreetmap.jp/styles/maptiler-basic-ja/style.json',
+	style: './styles/maptiler-basic-ja-custom.json',
 	center: mapCenter,
 	zoom: mapZoom
 });
