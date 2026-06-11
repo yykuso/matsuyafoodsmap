@@ -64,6 +64,7 @@ map.on('load', async() => {
 				'福松', '#9eb18a',
 				'麦のトリコ', '#eccc6c',
 				'トゥックントゥックン', '#c30511',
+				'松屋PREMIUM', '#dfa94f',
 				'その他', '#666666',
 				/* default */ '#aaaaaa'
 			]
@@ -346,6 +347,9 @@ function resolvePrimaryBrand(brandFlags) {
 
 function resolveRowPrimaryBrand(storeName, brandFlags, bname) {
 	const normalizedName = typeof storeName === 'string' ? storeName.trim() : '';
+	if (normalizedName.startsWith('松屋PREMIUM')) {
+		return '松屋PREMIUM';
+	}
 	if (normalizedName.startsWith('松屋')) {
 		return '松屋';
 	}
@@ -417,6 +421,9 @@ function getBrandColor(brandName) {
 	}
 	if (brandName === 'トゥックントゥックン') {
 		return '#c30511';
+	}
+	if (brandName === '松屋PREMIUM') {
+		return '#dfa94f';
 	}
 	return '#666666';
 }
@@ -586,7 +593,7 @@ function restoreBrandFilters() {
 
 function hasBrandFlag(feature, filterKey) {
 	if (filterKey === 'matsuya') {
-		return Boolean(feature.properties.has_matsuya);
+		return Boolean(feature.properties.has_matsuya) && feature.properties.primary_brand !== '松屋PREMIUM';
 	}
 	if (filterKey === 'matsunoya') {
 		return Boolean(feature.properties.has_matsunoya);
@@ -595,7 +602,7 @@ function hasBrandFlag(feature, filterKey) {
 		return Boolean(feature.properties.has_mycurry);
 	}
 	if (filterKey === 'other') {
-		return Boolean(feature.properties.has_other);
+		return Boolean(feature.properties.has_other) || feature.properties.primary_brand === '松屋PREMIUM';
 	}
 	return false;
 }
