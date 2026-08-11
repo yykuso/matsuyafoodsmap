@@ -20,6 +20,7 @@ body, html { margin: 0; padding: 0; height: 100%; }
 
 #filterPanel select {
     width: 100%;
+    min-width: 180px;
     margin-top: 4px;
 }
 
@@ -39,10 +40,10 @@ body, html { margin: 0; padding: 0; height: 100%; }
 }
 
 .info-link-button {
-    border: 1px solid #ea571e;
+    border: 1px solid #c54a11;
     border-radius: 999px;
     background: #ffffff;
-    color: #ea571e;
+    color: #c54a11;
     font-size: 12px;
     font-weight: 700;
     line-height: 1;
@@ -52,7 +53,7 @@ body, html { margin: 0; padding: 0; height: 100%; }
 
 .info-link-button:hover,
 .info-link-button:focus-visible {
-    background: #ea571e;
+    background: #c54a11;
     color: #ffffff;
 }
 

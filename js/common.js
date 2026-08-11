@@ -17,10 +17,13 @@ map.addControl(new maplibregl.GeolocateControl(), 'bottom-right');
 map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
 initInfoModal();
 
+// マップ初期化と並行してデータフェッチを開始
+const storeDataPromise = csvToGeoJSON('./data/matsuyafoods.csv');
+const codeFilterOptionsPromise = loadCodeFilterOptions();
+
 // 地図の初期化
 map.on('load', async() => {
-	const allStores = await csvToGeoJSON('./data/matsuyafoods.csv');
-	await loadCodeFilterOptions();
+	const [allStores] = await Promise.all([storeDataPromise, codeFilterOptionsPromise]);
 
 	map.addSource('allStores', {
 		type: 'geojson',

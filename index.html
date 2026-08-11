@@ -58,11 +58,15 @@
 
   <script src="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.js" defer></script>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.css"
-    crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js" defer></script>
 
-  <link href="./css/common.css" rel="stylesheet" media="print" onload="this.media='all'" />
+  <link href="./css/common.css" rel="stylesheet" />
+
+  <link rel="preload" href="./styles/maptiler-basic-ja-custom.json" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="./data/matsuyafoods.csv" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="./data/codeFilterOptions.csv" as="fetch" crossorigin="anonymous">
 
 </head>
 <body>
