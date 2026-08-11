@@ -7,7 +7,9 @@
   <meta name="description" content="松屋フーズ（松屋、松のや、マイカリー食堂、すし松、松軒中華食堂、ステーキ屋松など）の全国店舗を地図に表示。店舗限定メニューが一目でわかる便利な店舗検索マップです。">
   <meta name="keywords" content="松屋,松のや,マイカリー食堂,すし松,福松,松屋フーズ,店舗検索,地図,牛めし,とんかつ,カレー,店舗限定メニュー">
   <meta name="author" content="松屋フーズマップ">
-  <meta name="robots" content="index, follow">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <link rel="canonical" href="https://matsuya.yy-kuso.com/">
+  <meta name="theme-color" content="#ea571e">
 	<link rel="icon" type="image/x-icon" href="./img/favicon.ico" />
   <link rel="icon" type="image/svg+xml" href="./img/icon.svg" />
   <link rel="icon" type="image/png" sizes="16x16" href="./img/favicon-16x16.png">
@@ -15,17 +17,21 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./img/apple-touch-icon.png" />
 
   <meta property="og:url" content="https://matsuya.yy-kuso.com/">
-  <meta property="og:title" content="松屋フーズマップ - 松屋・松のや全店舗表示">
+  <meta property="og:site_name" content="松屋フーズマップ">
+  <meta property="og:locale" content="ja_JP">
+  <meta property="og:title" content="松屋フーズマップ - 松屋・松のや・マイカリー食堂など全店舗の地図表示">
   <meta property="og:type" content="website">
   <meta property="og:description" content="松屋フーズの全国店舗を地図に表示。店舗限定メニューが一目でわかる便利な店舗検索マップです。">
   <meta property="og:image" content="https://matsuya.yy-kuso.com/img/banner.png" />
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="松屋フーズマップ - 全国店舗を地図に表示">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@yy_kuso" />
   <meta name="twitter:creator" content="@yy_kuso" />
-  <meta name="twitter:title" content="松屋フーズマップ - 松屋・松のや全店舗表示">
+  <meta name="twitter:url" content="https://matsuya.yy-kuso.com/" />
+  <meta name="twitter:title" content="松屋フーズマップ - 松屋・松のや・マイカリー食堂など全店舗の地図表示">
   <meta name="twitter:description" content="松屋フーズの全国店舗を地図に表示。店舗限定メニューが一目でわかる便利な店舗検索マップです。">
   <meta name="twitter:image" content="https://matsuya.yy-kuso.com/img/twbanner.png" />
 
@@ -54,7 +60,7 @@
   }
   </script>
 
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QY0DYE3SCJ" defer></script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-QY0DYE3SCJ"></script>
 
   <script src="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.js" defer></script>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@^5.6.1/dist/maplibre-gl.css"
@@ -64,14 +70,11 @@
 
   <link href="./css/common.css" rel="stylesheet" />
 
-  <link rel="preload" href="./styles/maptiler-basic-ja-custom.json" as="fetch" crossorigin="anonymous">
-  <link rel="preload" href="./data/matsuyafoods.csv" as="fetch" crossorigin="anonymous">
-  <link rel="preload" href="./data/codeFilterOptions.csv" as="fetch" crossorigin="anonymous">
 
 </head>
 <body>
 
-<h1 style="position: absolute; left: -9999px;">松屋フーズマップ - 店舗表示</h1>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">松屋フーズマップ - 店舗表示</h1>
 
 <div id="map" role="application" aria-label="松屋フーズ店舗マップ"></div>
 
