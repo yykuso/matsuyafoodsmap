@@ -159,21 +159,25 @@ map.on('click', 'allStoresLayer', (e) => {
 	const appleMapsUrl = shouldUseCoordinateLinks
 		? buildAppleMapsCoordinateUrl(longitude, latitude)
 		: `http://maps.apple.com/?q=${encodeURIComponent(cleanStoreName)}`;
-	const officialLinksHTML = shouldUseCoordinateLinks
-		? ''
-		: buildOfficialSiteLinks(popupProperties).map(link => {
-			const theme = getBrandTheme(link.colorBrand || link.label);
-			const officialSiteUrl = `https://pkg.navitime.co.jp/matsuyafoods/spot/detail?code=${link.code}`;
-			return `<a href="${officialSiteUrl}" target="_blank" rel="noopener" class="map-link official-link" style="background:${theme.background};color:${theme.color};">${link.label}</a>`;
-		}).join('');
+	const officialStores = shouldUseCoordinateLinks ? [] : buildOfficialSiteLinks(popupProperties);
+	const officialStoresHTML = officialStores.map(link => {
+		const theme = getBrandTheme(link.colorBrand || link.label);
+		const displayLinkCode = String(parseStoreCode(link.code)).padStart(5, '0');
+		const officialSiteUrl = `https://pkg.navitime.co.jp/matsuyafoods/spot/detail?code=${link.code}`;
+		return `
+			<div class="official-store-item">
+				<span class="official-code-item">${displayLinkCode}</span>
+				<a href="${officialSiteUrl}" target="_blank" rel="noopener" class="official-link" style="background:${theme.background};color:${theme.color};">${link.label}</a>
+			</div>`;
+	}).join('');
 
     // ポップアップのHTML
     const popupHTML = `
 		<div class="store-popup">
 			<strong class="store-name">${store_name}</strong>
-			${officialLinksHTML ? `
+			${officialStoresHTML ? `
 			<div class="official-links">
-				${officialLinksHTML}
+				${officialStoresHTML}
 			</div>` : ''}
 			<div class="map-links">
 				<a href="${googleMapsUrl}" target="_blank" rel="noopener" class="map-link google">
